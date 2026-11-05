@@ -1,0 +1,555 @@
+[
+  {
+    "name": "Browse products without changing the cart",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Which products are available? Leave my cart unchanged."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_products",
+        "arguments": {},
+        "mockOutput": {
+          "currency": "EUR",
+          "products": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "priceCents": 500,
+              "stock": 10
+            },
+            {
+              "id": "plant",
+              "name": "Plant",
+              "priceCents": 1800,
+              "stock": 10
+            }
+          ],
+          "offset": 0,
+          "page_size": 2,
+          "total_count": 2,
+          "next_offset": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Read the manually changed cart",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "I changed the cart using the page. How many coffees are there now? Do not change it."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 3,
+          "currency": "EUR",
+          "items": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "quantity": 1,
+              "lineTotalCents": 500
+            }
+          ],
+          "count": 1,
+          "subtotalCents": 500,
+          "totalCents": 500,
+          "offset": 0,
+          "page_size": 1,
+          "total_count": 1,
+          "next_offset": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Set an explicit final quantity",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Check my cart, then set Coffee to exactly two. Keep the other items."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_products",
+        "arguments": {},
+        "mockOutput": {
+          "currency": "EUR",
+          "products": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "priceCents": 500,
+              "stock": 10
+            },
+            {
+              "id": "plant",
+              "name": "Plant",
+              "priceCents": 1800,
+              "stock": 10
+            }
+          ],
+          "offset": 0,
+          "page_size": 2,
+          "total_count": 2,
+          "next_offset": null
+        },
+        "optional": true
+      },
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 3,
+          "currency": "EUR",
+          "items": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "quantity": 1,
+              "lineTotalCents": 500
+            }
+          ],
+          "count": 1,
+          "subtotalCents": 500,
+          "totalCents": 500,
+          "offset": 0,
+          "page_size": 1,
+          "total_count": 1,
+          "next_offset": null
+        }
+      },
+      {
+        "functionName": "list_products",
+        "arguments": {},
+        "mockOutput": {
+          "currency": "EUR",
+          "products": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "priceCents": 500,
+              "stock": 10
+            },
+            {
+              "id": "plant",
+              "name": "Plant",
+              "priceCents": 1800,
+              "stock": 10
+            }
+          ],
+          "offset": 0,
+          "page_size": 2,
+          "total_count": 2,
+          "next_offset": null
+        },
+        "optional": true
+      },
+      {
+        "functionName": "set_cart_quantity",
+        "arguments": {
+          "product_id": "coffee",
+          "quantity": 2
+        },
+        "mockOutput": {
+          "revision": 4,
+          "currency": "EUR",
+          "product_id": "coffee",
+          "quantity": 2,
+          "count": 2,
+          "subtotalCents": 1000,
+          "totalCents": 1000
+        }
+      },
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 4,
+          "currency": "EUR",
+          "items": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "quantity": 2,
+              "lineTotalCents": 1000
+            }
+          ],
+          "count": 2,
+          "subtotalCents": 1000,
+          "totalCents": 1000,
+          "offset": 0,
+          "page_size": 1,
+          "total_count": 1,
+          "next_offset": null
+        },
+        "optional": true
+      }
+    ]
+  },
+  {
+    "name": "Remove a known cart product",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Check my cart, then remove Coffee. Keep the other items."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_products",
+        "arguments": {},
+        "mockOutput": {
+          "currency": "EUR",
+          "products": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "priceCents": 500,
+              "stock": 10
+            },
+            {
+              "id": "plant",
+              "name": "Plant",
+              "priceCents": 1800,
+              "stock": 10
+            }
+          ],
+          "offset": 0,
+          "page_size": 2,
+          "total_count": 2,
+          "next_offset": null
+        },
+        "optional": true
+      },
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 3,
+          "currency": "EUR",
+          "items": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "quantity": 1,
+              "lineTotalCents": 500
+            }
+          ],
+          "count": 1,
+          "subtotalCents": 500,
+          "totalCents": 500,
+          "offset": 0,
+          "page_size": 1,
+          "total_count": 1,
+          "next_offset": null
+        }
+      },
+      {
+        "functionName": "list_products",
+        "arguments": {},
+        "mockOutput": {
+          "currency": "EUR",
+          "products": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "priceCents": 500,
+              "stock": 10
+            },
+            {
+              "id": "plant",
+              "name": "Plant",
+              "priceCents": 1800,
+              "stock": 10
+            }
+          ],
+          "offset": 0,
+          "page_size": 2,
+          "total_count": 2,
+          "next_offset": null
+        },
+        "optional": true
+      },
+      {
+        "functionName": "set_cart_quantity",
+        "arguments": {
+          "product_id": "coffee",
+          "quantity": 0
+        },
+        "mockOutput": {
+          "revision": 4,
+          "currency": "EUR",
+          "product_id": "coffee",
+          "quantity": 0,
+          "count": 0,
+          "subtotalCents": 0,
+          "totalCents": 0
+        }
+      },
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 4,
+          "currency": "EUR",
+          "items": [],
+          "count": 0,
+          "subtotalCents": 0,
+          "totalCents": 0,
+          "offset": 0,
+          "page_size": 0,
+          "total_count": 0,
+          "next_offset": null
+        },
+        "optional": true
+      }
+    ]
+  },
+  {
+    "name": "Read the next catalog page",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Show me the products."
+      },
+      {
+        "role": "model",
+        "type": "functioncall",
+        "name": "list_products",
+        "arguments": {}
+      },
+      {
+        "role": "user",
+        "type": "functionresponse",
+        "name": "list_products",
+        "response": {
+          "result": {
+            "currency": "EUR",
+            "products": [
+              {
+                "id": "coffee",
+                "name": "Coffee",
+                "priceCents": 500,
+                "stock": 10
+              },
+              {
+                "id": "plant",
+                "name": "Plant",
+                "priceCents": 1800,
+                "stock": 10
+              }
+            ],
+            "offset": 0,
+            "page_size": 2,
+            "total_count": 3,
+            "next_offset": 2
+          }
+        }
+      },
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Show the remaining products. Do not change the cart."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "list_products",
+        "arguments": {
+          "offset": 2
+        },
+        "mockOutput": {
+          "currency": "EUR",
+          "products": [
+            {
+              "id": "book",
+              "name": "Book",
+              "priceCents": 2400,
+              "stock": 10
+            }
+          ],
+          "offset": 2,
+          "page_size": 1,
+          "total_count": 3,
+          "next_offset": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Checkout stays with the user",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Read my current cart and tell me how to review and confirm the order myself. Do not change quantities."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 3,
+          "currency": "EUR",
+          "items": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "quantity": 1,
+              "lineTotalCents": 500
+            }
+          ],
+          "count": 1,
+          "subtotalCents": 500,
+          "totalCents": 500,
+          "offset": 0,
+          "page_size": 1,
+          "total_count": 1,
+          "next_offset": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Missing desired quantity needs clarification",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Change the coffee quantity."
+      }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          {
+            "functionName": "list_products",
+            "arguments": {},
+            "mockOutput": {
+              "currency": "EUR",
+              "products": [
+                {
+                  "id": "coffee",
+                  "name": "Coffee",
+                  "priceCents": 500,
+                  "stock": 10
+                },
+                {
+                  "id": "plant",
+                  "name": "Plant",
+                  "priceCents": 1800,
+                  "stock": 10
+                }
+              ],
+              "offset": 0,
+              "page_size": 2,
+              "total_count": 2,
+              "next_offset": null
+            },
+            "optional": true
+          },
+          {
+            "functionName": "get_cart",
+            "arguments": {},
+            "mockOutput": {
+              "revision": 3,
+              "currency": "EUR",
+              "items": [
+                {
+                  "id": "coffee",
+                  "name": "Coffee",
+                  "quantity": 1,
+                  "lineTotalCents": 500
+                }
+              ],
+              "count": 1,
+              "subtotalCents": 500,
+              "totalCents": 500,
+              "offset": 0,
+              "page_size": 1,
+              "total_count": 1,
+              "next_offset": null
+            },
+            "optional": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "An uncertain failed change is not retried",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Set Coffee to exactly two."
+      },
+      {
+        "role": "model",
+        "type": "functioncall",
+        "name": "set_cart_quantity",
+        "arguments": {
+          "product_id": "coffee",
+          "quantity": 2
+        }
+      },
+      {
+        "role": "user",
+        "type": "functionresponse",
+        "name": "set_cart_quantity",
+        "response": {
+          "result": {
+            "code": "REQUEST_FAILED",
+            "error": "The response was lost. Read the cart before trying a change again.",
+            "retryable": false
+          }
+        }
+      },
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Check what is actually in the cart now. Do not make another change."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_cart",
+        "arguments": {},
+        "mockOutput": {
+          "revision": 3,
+          "currency": "EUR",
+          "items": [
+            {
+              "id": "coffee",
+              "name": "Coffee",
+              "quantity": 1,
+              "lineTotalCents": 500
+            }
+          ],
+          "count": 1,
+          "subtotalCents": 500,
+          "totalCents": 500,
+          "offset": 0,
+          "page_size": 1,
+          "total_count": 1,
+          "next_offset": null
+        }
+      }
+    ]
+  }
+]

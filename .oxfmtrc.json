@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "svelte": true,
+  "ignorePatterns": [
+    "src/lib/components/ui/**",
+    "src/lib/utils.ts",
+    "src/routes/layout.css",
+    "src/routes/typeset.css",
+    ".agent/**",
+    ".agents/**",
+    ".audit/**",
+    ".claude/**",
+    ".codex/**",
+    ".continue/**",
+    ".cursor/**",
+    ".gemini/**",
+    ".opencode/**",
+    ".pi/**",
+    ".roo/**",
+    ".windsurf/**",
+    "tools/oxlint/anti-slop/**"
+  ]
+}

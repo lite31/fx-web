@@ -1,0 +1,157 @@
+version: "3"
+silent: true
+
+vars:
+  APP: "{{.TASKFILE_DIR}}/../../.."
+
+tasks:
+  new:
+    cmds:
+      - |
+        node --input-type=module <<'JS'
+        import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+        import { tmpdir } from 'node:os';
+        import { join, basename } from 'node:path';
+        import { createServer } from 'node:net';
+        const run = mkdtempSync(join(tmpdir(), 'fx-web-verify-'));
+        writeFileSync(join(run, '.verification-owned'), run);
+        mkdirSync(run + '.evidence', { mode: 0o700 });
+        const socket = createServer();
+        await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
+        const { port } = socket.address();
+        await new Promise(resolve => socket.close(resolve));
+        writeFileSync(join(run, 'run.json'), JSON.stringify({ port, origin: `http://127.0.0.1:${port}`, session: basename(run) }));
+        process.stdout.write(run + '\n');
+        JS
+
+  prepare:
+    dir: "{{.APP}}"
+    requires:
+      vars: [FX_VERIFY_RUN]
+    cmds:
+      - |
+        node --input-type=module <<'JS'
+        import assert from 'node:assert/strict';
+        import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+        const run = process.env.FX_VERIFY_RUN;
+        assert.equal(readFileSync(run + '/.verification-owned', 'utf8'), run);
+        assert.ok(!existsSync(run + '/data/app.sqlite'), 'Prepare requires a new run; never reseed an existing database.');
+        writeFileSync(run + '/products.json', JSON.stringify([
+          { id: 'coffee', name: 'Coffee', emoji: '☕', currency: 'EUR', priceCents: 500, stock: 10 },
+          { id: 'plant', name: 'Plant', emoji: '🪴', currency: 'EUR', priceCents: 1800, stock: 10 },
+          { id: 'book', name: 'Book', emoji: '📖', currency: 'EUR', priceCents: 2400, stock: 10 }
+        ]));
+        JS
+      - env FX_DATABASE_PATH={{.FX_VERIFY_RUN | shellQuote}}/data/app.sqlite node scripts/catalog-import.ts {{.FX_VERIFY_RUN | shellQuote}}/products.json
+
+  launch:
+    dir: "{{.APP}}"
+    requires:
+      vars: [FX_VERIFY_RUN]
+    vars:
+      PORT:
+        sh: node -p 'JSON.parse(require("node:fs").readFileSync(process.env.FX_VERIFY_RUN + "/run.json", "utf8")).port'
+    cmds:
+      - pnpm exec vite build --config vite.mcp.config.ts
+      - |
+        printf '%s\n' "$$" > {{.FX_VERIFY_RUN | shellQuote}}/launcher.pid
+        exec env \
+          FX_DATABASE_PATH={{.FX_VERIFY_RUN | shellQuote}}/data/app.sqlite \
+          BETTER_AUTH_SECRET=fx-web-verification-secret-at-least-32-characters \
+          BETTER_AUTH_URL= AI_GATEWAY_API_KEY= \
+          FX_MODEL=verify-{{base .FX_VERIFY_RUN | shellQuote}} \
+          FX_MCP_REMOTE_URL= FX_MCP_REMOTE_TOKEN= FX_MCP_CLIENT_METADATA_URLS='[]' FX_MCP_SANDBOX_ORIGIN= \
+          pnpm exec vite dev --host 127.0.0.1 --port {{.PORT}} --strictPort
+
+  origin:
+    requires:
+      vars: [FX_VERIFY_RUN]
+    cmds:
+      - node -p 'JSON.parse(require("node:fs").readFileSync(process.env.FX_VERIFY_RUN + "/run.json", "utf8")).origin'
+
+  doctor:
+    requires:
+      vars: [FX_VERIFY_RUN]
+    cmds:
+      - |
+        node --input-type=module <<'JS'
+        import assert from 'node:assert/strict';
+        import { readFileSync } from 'node:fs';
+        import { execFileSync } from 'node:child_process';
+        const run = process.env.FX_VERIFY_RUN;
+        assert.equal(readFileSync(run + '/.verification-owned', 'utf8'), run);
+        const { port, origin, session } = JSON.parse(readFileSync(run + '/run.json', 'utf8'));
+        const launcher = Number(readFileSync(run + '/launcher.pid', 'utf8'));
+        process.kill(launcher, 0);
+        const owners = execFileSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8' }).trim().split('\n').map(Number);
+        const owned = owners.some(owner => {
+          while (owner > 1) {
+            if (owner === launcher) return true;
+            owner = Number(execFileSync('ps', ['-o', 'ppid=', '-p', String(owner)], { encoding: 'utf8' }).trim());
+          }
+          return false;
+        });
+        assert.ok(owned, 'The listener is not a child of this verification launcher.');
+        const config = await fetch(origin + '/api/config', { signal: AbortSignal.timeout(30_000) });
+        assert.ok(config.ok);
+        assert.deepEqual(await config.json(), { model: `verify-${session}`, configured: false });
+        const signIn = await fetch(origin + '/sign-in', { signal: AbortSignal.timeout(30_000) });
+        assert.equal(signIn.status, 200);
+        assert.ok((await signIn.text()).includes('Sign in to fx-web'));
+        console.log(JSON.stringify({ origin, launcher, owners, gatewayConfigured: false, signIn: 'ready' }));
+        JS
+
+  browser:
+    requires:
+      vars: [FX_VERIFY_RUN]
+    cmds:
+      - task -d {{.APP | shellQuote}} browser SESSION={{base .FX_VERIFY_RUN | shellQuote}} -- {{.CLI_ARGS}}
+
+  state:
+    requires:
+      vars: [FX_VERIFY_RUN]
+    cmds:
+      - |
+        node --input-type=module <<'JS'
+        import assert from 'node:assert/strict';
+        import { readFileSync } from 'node:fs';
+        import { DatabaseSync } from 'node:sqlite';
+        const run = process.env.FX_VERIFY_RUN;
+        assert.equal(readFileSync(run + '/.verification-owned', 'utf8'), run);
+        const db = new DatabaseSync(run + '/data/app.sqlite', { readOnly: true });
+        try {
+          console.log(JSON.stringify({
+            carts: db.prepare('SELECT u.username, c.revision, i.productId, i.quantity FROM carts c JOIN users u ON u.id=c.userId LEFT JOIN cart_items i ON i.userId=c.userId ORDER BY u.username,i.productId').all(),
+            products: db.prepare('SELECT id,priceCents,stock FROM products ORDER BY id').all(),
+            orders: db.prepare('SELECT id,quoteId FROM orders ORDER BY id').all()
+          }));
+        } finally { db.close(); }
+        JS
+
+  cleanup:
+    dir: "{{.APP}}"
+    requires:
+      vars: [FX_VERIFY_RUN]
+    cmds:
+      - |
+        node --input-type=module <<'JS'
+        import assert from 'node:assert/strict';
+        import { readFileSync, existsSync, rmSync } from 'node:fs';
+        import { basename } from 'node:path';
+        import { execFileSync, spawnSync } from 'node:child_process';
+        const run = process.env.FX_VERIFY_RUN;
+        assert.equal(readFileSync(run + '/.verification-owned', 'utf8'), run);
+        assert.ok(basename(run).startsWith('fx-web-verify-'));
+        if (existsSync(run + '/launcher.pid')) {
+          const pid = Number(readFileSync(run + '/launcher.pid', 'utf8'));
+          let alive = true;
+          try { process.kill(pid, 0); } catch (error) { if (error.code === 'ESRCH') alive = false; else throw error; }
+          assert.ok(!alive, 'Stop the owning launch terminal with Ctrl+C before cleanup.');
+        }
+        const { port } = JSON.parse(readFileSync(run + '/run.json', 'utf8'));
+        const listener = spawnSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t']);
+        assert.equal(listener.status, 1, 'The port still has a listener; keep the run directory and inspect the recorded owner.');
+        execFileSync('task', ['browser', `SESSION=${basename(run)}`, '--', 'close'], { stdio: 'inherit' });
+        rmSync(run, { recursive: true });
+        console.log('Retained evidence at ' + run + '.evidence');
+        JS

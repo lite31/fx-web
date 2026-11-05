@@ -1,0 +1,12 @@
+node_modules/
+.svelte-kit/
+build/
+.outputs/
+
+.env
+.env.*
+!.env.fx.example
+
+!/data/
+/data/*
+!/data/.gitkeep

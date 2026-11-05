@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Isolated MCP app</title>
+    <style>
+      html,
+      body,
+      iframe {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const hostOrigins = __FX_HOST_ORIGINS__;
+      let hostOrigin;
+      let inner;
+      // An opaque origin requires "*" as the inner frame's message target.
+      // Validate the exact sending window in both directions, not just its origin.
+      window.addEventListener("message", (event) => {
+        if (event.source === window.parent && hostOrigins.includes(event.origin)) {
+          if (hostOrigin && event.origin !== hostOrigin) return;
+          hostOrigin = event.origin;
+          const data = event.data;
+          if (!data || data.jsonrpc !== "2.0") return;
+          if (data.method === "ui/notifications/sandbox-resource-ready") {
+            if (inner || typeof data.params?.html !== "string" || data.params.html.length > 512000)
+              return;
+            // Omitting allow-same-origin gives the app an opaque origin. Never put
+            // untrusted HTML in the outer proxy, whose origin the host trusts.
+            inner = document.createElement("iframe");
+            inner.title = "Isolated MCP app";
+            inner.setAttribute("sandbox", "allow-scripts");
+            inner.referrerPolicy = "no-referrer";
+            inner.srcdoc = data.params.html;
+            document.body.append(inner);
+          } else if (inner) inner.contentWindow.postMessage(data, "*");
+        } else if (
+          inner &&
+          event.source === inner.contentWindow &&
+          event.origin === "null" &&
+          hostOrigin
+        ) {
+          const data = event.data;
+          if (data && data.jsonrpc === "2.0") window.parent.postMessage(data, hostOrigin);
+        }
+      });
+      for (const origin of hostOrigins)
+        window.parent.postMessage(
+          { jsonrpc: "2.0", method: "ui/notifications/sandbox-proxy-ready", params: {} },
+          origin,
+        );
+    </script>
+  </body>
+</html>

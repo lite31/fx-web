@@ -1,0 +1,143 @@
+version: "3"
+
+dotenv:
+  - .env.fx
+
+tasks:
+  auth-setup:
+    cmds:
+      - node scripts/auth-setup.ts
+
+  install:
+    cmds:
+      - pnpm install --frozen-lockfile
+
+  cli-shadcn-svelte:
+    cmds:
+      - pnpm exec shadcn-svelte {{.CLI_ARGS}}
+
+  format:
+    cmds:
+      - pnpm exec oxfmt --write src tests scripts vite.config.ts vite.mcp.config.ts Taskfile.yaml .oxfmtrc.json eslint.config.mjs package.json
+
+  lint:
+    cmds:
+      - pnpm exec oxlint src tests scripts vite.config.ts vite.mcp.config.ts eslint.config.mjs
+      - pnpm exec eslint .
+
+  dev:
+    cmds:
+      - task: build-mcp-ui
+      - task: serve
+
+  serve:
+    cmds:
+      - pnpm exec vite dev {{.CLI_ARGS}}
+
+  check:
+    cmds:
+      - pnpm exec svelte-kit sync
+      - pnpm exec svelte-check --tsconfig ./tsconfig.json
+      - pnpm exec tsc --ignoreConfig --noEmit --strict --skipLibCheck --types node --target esnext --module nodenext --rewriteRelativeImportExtensions scripts/*.ts
+
+  test:
+    cmds:
+      - task: build-mcp-ui
+      - task: build-mcp-fixture
+      - node --test tests/*.test.*
+
+  test-browser:
+    cmds:
+      - task: build-mcp-ui
+      - task: build-mcp-fixture
+      - node --test --test-concurrency=1 tests/chat.browser.mjs tests/mcp-apps.browser.mjs
+
+  verify:
+    cmds:
+      - task: check
+      - task: test
+      - task: lint
+      - task: build
+      - task: test-browser
+
+  build-mcp-ui:
+    cmds:
+      - pnpm exec vite build --config vite.mcp.config.ts
+
+  build-mcp-fixture:
+    cmds:
+      - pnpm exec vite build --config vite.mcp.config.ts --mode chart-fixture
+
+  mcp-sandbox:
+    cmds:
+      - node scripts/mcp-sandbox.mjs {{.CLI_ARGS}}
+
+  mcp-chart-fixture:
+    cmds:
+      - node tests/fixtures/mcp-chart.ts {{.CLI_ARGS}}
+
+  build:
+    cmds:
+      - task: build-mcp-ui
+      - pnpm exec vite build
+
+  preview:
+    cmds:
+      - pnpm exec vite preview {{.CLI_ARGS}}
+
+  browser-install:
+    cmds:
+      - pnpm exec agent-browser install {{.CLI_ARGS}}
+
+  browser:
+    env:
+      # Chrome 157 exposes document.modelContext only behind this feature.
+      AGENT_BROWSER_ARGS: --enable-features=WebMCP
+    cmds:
+      - pnpm exec agent-browser --session {{.SESSION | default "fx-web" | shellQuote}} {{.CLI_ARGS}}
+
+  webmcp-schema:
+    cmds:
+      - |
+        node --input-type=module <<'JS'
+        import { mkdir, writeFile } from 'node:fs/promises';
+        import { createShop } from './src/lib/shop.ts';
+        import { createWebMcpTools } from './src/lib/webmcp.ts';
+        const shop = createShop(() => {});
+        const tools = createWebMcpTools(shop.tools, new AbortController().signal)
+          .map(({ execute, ...definition }) => definition);
+        shop.dispose();
+        await mkdir('.outputs/webmcp', { recursive: true });
+        await writeFile('.outputs/webmcp/schema.json', JSON.stringify({ tools }, null, 2) + '\n');
+        JS
+
+  webmcp-eval:
+    vars:
+      RUN:
+        sh: mkdir -p .outputs/webmcp && mktemp -d .outputs/webmcp/evals-XXXXXX
+    cmds:
+      - task: webmcp-schema
+      - pnpm dlx webmcp-evals@0.0.4 local -t .outputs/webmcp/schema.json -e tests/webmcp/evals.json --reporter console json --output-dir {{.RUN | shellQuote}} {{.CLI_ARGS}}
+      - |
+        node --input-type=module - {{.RUN | shellQuote}} <<'JS'
+        import assert from 'node:assert/strict';
+        import { readdir, readFile } from 'node:fs/promises';
+        const directory = process.argv[2];
+        const reports = (await readdir(directory)).filter(name => /^report-.*\.json$/.test(name));
+        assert.equal(reports.length, 1, 'The evaluator must write a fresh JSON report.');
+        const { results } = JSON.parse(await readFile(`${directory}/${reports[0]}`, 'utf8'));
+        assert.ok(results.testCount > 0 && results.passCount > 0 && results.failCount === 0 && results.errorCount === 0,
+          'WebMCP model evaluations failed. Inspect the report for errors and mismatches.');
+        JS
+
+  catalog-import:
+    requires:
+      vars: [FILE]
+    cmds:
+      - node scripts/catalog-import.ts {{.FILE | shellQuote}}
+
+  database-migrate:
+    requires:
+      vars: [FROM]
+    cmds:
+      - node scripts/database-migrate.ts {{.FROM | shellQuote}}

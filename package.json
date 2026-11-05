@@ -1,0 +1,50 @@
+{
+  "name": "fx-web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "svelte-kit sync"
+  },
+  "dependencies": {
+    "@better-auth/cimd": "1.7.7",
+    "@better-auth/mcp": "1.7.7",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/core": "2.3.1",
+    "@modelcontextprotocol/ext-apps": "2.0.3",
+    "@modelcontextprotocol/server": "2.3.1",
+    "better-auth": "1.7.7",
+    "hono": "^4.13.11",
+    "libfx": "0.0.14",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@oxlint/plugins": "1.86.0",
+    "@shadcn/lint": "^0.2.0",
+    "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/kit": "^2.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^26.6.3",
+    "@typescript-eslint/parser": "^8.71.0",
+    "agent-browser": "0.38.1",
+    "cn": "^0.4.0",
+    "eslint": "^9.39.5",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "shadcn-svelte": "1.7.0",
+    "svelte": "^5.56.1",
+    "svelte-check": "^4.6.0",
+    "svelte-eslint-parser": "^1.8.1",
+    "tailwind-variants": "^3.3.1",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "webmcp-types": "0.1.10"
+  },
+  "engines": {
+    "node": ">=26.3.0"
+  },
+  "packageManager": "pnpm@11.5.2"
+}
